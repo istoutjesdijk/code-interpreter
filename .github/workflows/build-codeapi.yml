@@ -1,0 +1,91 @@
+name: build-codeapi
+
+# Builds the six code-interpreter images and pushes them to ghcr.io.
+# Public repo => free unlimited minutes on standard runners, and GITHUB_TOKEN
+# can push to ghcr.io, so no PAT and no write:packages scope are needed.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: codeapi-api
+            dockerfile: service/Dockerfile.api
+          - name: codeapi-worker
+            dockerfile: service/Dockerfile.worker
+          - name: codeapi-egress-gateway
+            dockerfile: service/Dockerfile.egress-gateway
+            target: production
+          - name: codeapi-tool-call-server
+            dockerfile: service/Dockerfile.tool-call-server
+            target: production
+          - name: codeapi-file-server
+            dockerfile: service/Dockerfile
+            target: production
+          # The heavy one: Fedora + nsjail + the package builder that pulls
+          # Python 3.14, Node 24 and Bun. Needs the disk cleanup below.
+          - name: codeapi-sandbox
+            dockerfile: api/Dockerfile
+            target: sandbox-direct
+            heavy: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Standard runners ship ~14 GB free. Dropping the preinstalled toolchains
+      # we do not use reclaims roughly 25 GB, which the sandbox build needs.
+      - name: Reclaim disk space
+        if: matrix.heavy
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          # Pin deployments to the SHA tag. `latest` exists for convenience,
+          # but this is the component that executes arbitrary code — you want
+          # to know which build is running.
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  summary:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "### Images pushed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "CODEAPI_REGISTRY=${{ env.REGISTRY }}/${{ github.repository_owner }}" >> $GITHUB_STEP_SUMMARY
+          echo "CODEAPI_TAG=${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

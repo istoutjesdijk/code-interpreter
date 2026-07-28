@@ -299,3 +299,12 @@ FROM sandbox-runner AS sandbox-runner-false
 # Keep the safe KVM image as the Dockerfile default. Direct NsJail and legacy
 # virtio-fs deployments can still select --target sandbox-runner explicitly.
 FROM sandbox-runner-true AS sandbox-runner-default
+
+# ============================================================================
+# Sandbox for hosts without /dev/kvm: NsJail direct, runtimes baked in
+# ============================================================================
+# Upstream serves the runtimes through a bind mount of ./data/pkgs, which
+# silently becomes an empty directory on a Coolify host with no checkout.
+# Baking them into the image removes the volume entirely.
+FROM sandbox-build AS sandbox-direct
+COPY --from=package-builder /pkgs /pkgs
