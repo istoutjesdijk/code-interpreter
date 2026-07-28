@@ -232,3 +232,12 @@ COPY --from=sandbox-build / /sandbox-rootfs/
 RUN sed -i '/^cgroup_mem_swap_max/d' /sandbox-rootfs/sandbox_api/config/sandbox.cfg
 
 RUN mkdir -p /host-packages
+
+# ============================================================================
+# Sandbox for hosts without /dev/kvm: NsJail direct, runtimes baked in
+# ============================================================================
+# Upstream serves the runtimes through a bind mount of ./data/pkgs, which
+# silently becomes an empty directory on a Coolify host with no checkout.
+# Baking them into the image removes the volume entirely.
+FROM sandbox-build AS sandbox-direct
+COPY --from=package-builder /pkgs /pkgs
