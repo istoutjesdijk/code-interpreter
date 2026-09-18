@@ -159,6 +159,12 @@ install_python_packages() {
     echo "  Installing Python packages"
     echo "=============================================="
 
+    # PDF editing: the sandbox has no network (nsjail clone_newnet), so nothing
+    # can be pip-installed at run time and the baked set is the whole toolbox.
+    # pymupdf and pikepdf are what make an existing PDF editable rather than
+    # only readable; pypdf supersedes the EOL pypdf2 above and is the name a
+    # model reaches for by default. All four ship wheels usable on cp314.
+    #
     # MarkItDown 0.1.x initializes Magika/ONNX at import time; the aarch64
     # onnxruntime wheel segfaults under NsJail. 0.0.2 still supports PPTX via
     # python-pptx without that native dependency.
@@ -199,6 +205,10 @@ install_python_packages() {
         pdf2image \
         "pdfminer.six" \
         reportlab \
+        pymupdf \
+        pikepdf \
+        pypdf \
+        pdfplumber \
         opencv-python-headless \
         svglib \
         cairosvg \
