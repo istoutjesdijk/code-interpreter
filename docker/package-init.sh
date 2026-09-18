@@ -93,6 +93,7 @@ packages_ready() {
     [ -d "/pkgs/python/${PYTHON_VERSION}/lib/python${PYTHON_SITE_VERSION}/site-packages/chdb" ] &&
     [ -d "/pkgs/python/${PYTHON_VERSION}/lib/python${PYTHON_SITE_VERSION}/site-packages/statsmodels" ] &&
     [ -d "/pkgs/python/${PYTHON_VERSION}/lib/python${PYTHON_SITE_VERSION}/site-packages/rasterio" ] &&
+    [ -d "/pkgs/python/${PYTHON_VERSION}/lib/python${PYTHON_SITE_VERSION}/site-packages/pymupdf" ] &&
     [ -f "/pkgs/node/${NODE_VERSION}/.package-installed" ] &&
     js_packages_ready "/pkgs/node/${NODE_VERSION}" &&
     [ -f "/pkgs/bun/${BUN_VERSION}/.package-installed" ] &&
@@ -181,6 +182,12 @@ if [ -f "$PIP_PATH" ]; then
         PYTHON_INSTALL_CMD=("${PKG_DEST}/bin/uv" pip install --python "${PKG_DEST}/bin/python3")
     fi
 
+    # PDF editing: the sandbox has no network (nsjail clone_newnet), so nothing
+    # can be pip-installed at run time and the baked set is the whole toolbox.
+    # pymupdf and pikepdf are what make an existing PDF editable rather than
+    # only readable; pypdf supersedes the EOL pypdf2 above and is the name a
+    # model reaches for by default. All four ship wheels usable on cp314.
+    #
     # MarkItDown 0.1.x initializes Magika/ONNX at import time; the aarch64
     # onnxruntime wheel segfaults under NsJail. 0.0.2 still supports PPTX via
     # python-pptx without that native dependency.
@@ -220,6 +227,10 @@ if [ -f "$PIP_PATH" ]; then
         pdf2image \
         "pdfminer.six" \
         reportlab \
+        pymupdf \
+        pikepdf \
+        pypdf \
+        pdfplumber \
         opencv-python-headless \
         svglib \
         cairosvg \
