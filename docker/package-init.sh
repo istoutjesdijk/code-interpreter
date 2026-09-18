@@ -182,6 +182,11 @@ if [ -f "$PIP_PATH" ]; then
         PYTHON_INSTALL_CMD=("${PKG_DEST}/bin/uv" pip install --python "${PKG_DEST}/bin/python3")
     fi
 
+    # The legacy `pdfminer` (20191125, last released for python2-era APIs) is
+    # deliberately absent: it installs over the maintained `pdfminer.six` into
+    # the same `pdfminer` module and wins, which breaks both
+    # `pdfminer.high_level` and pdfplumber, whose only backend it is.
+    #
     # PDF editing: the sandbox has no network (nsjail clone_newnet), so nothing
     # can be pip-installed at run time and the baked set is the whole toolbox.
     # pymupdf and pikepdf are what make an existing PDF editable rather than
@@ -240,7 +245,6 @@ if [ -f "$PIP_PATH" ]; then
         qrcode \
         fonttools \
         pytesseract \
-        pdfminer \
         vsdx \
         rasterio \
         rioxarray \
